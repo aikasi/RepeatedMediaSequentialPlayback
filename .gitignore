@@ -1,0 +1,66 @@
+# =====================
+# Unity .gitignore
+# =====================
+
+# Unity 자동 생성 폴더
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+
+# 메모리 스냅샷
+/[Mm]emoryCaptures/
+
+# 에셋 번들
+/[Aa]sset[Bb]undles/
+
+# Visual Studio / Rider / VS Code
+.vs/
+.vscode/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# Rider
+.idea/
+
+# OS 생성 파일
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Unity3D 크래시 리포트
+sysinfo.txt
+crashlytics-build.properties
+
+# Builds (빌드 결과물)
+*.apk
+*.aab
+*.unitypackage
+*.app
+
+# Streaming Assets 내 미디어 파일 (용량이 크므로 Git 제외 권장)
+# 필요 시 아래 주석을 해제하세요:
+/Assets/StreamingAssets/Media*/
+
+# 로그 파일
+*.log
