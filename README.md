@@ -130,7 +130,7 @@ C:\Users\{사용자명}\AppData\LocalLow\MetaDevs\RepeatedMediaSequentialPlaybac
 
 ## 기술 사양
 
-- **Unity 버전:** 2021.3 LTS 이상
+- **Unity 버전:** 6000.3.9f1
 - **미디어 엔진:** AVPro Video
 - **지원 이미지:** JPG, JPEG, PNG (BMP 미지원 — Unity 네이티브 제한)
 - **지원 영상:** MP4, MOV, WebM, MKV, AVI

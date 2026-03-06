@@ -1,0 +1,12 @@
+﻿<Solution>
+  <Project Path="AVProVideo.Demos.csproj" />
+  <Project Path="AVProVideo.Editor.csproj" />
+  <Project Path="AVProVideo.Runtime.csproj" />
+  <Project Path="Assembly-CSharp.csproj" />
+  <Project Path="_AVProVideo.Extensions.VideoPlayer.Editor.csproj" />
+  <Project Path="AVProVideo.Extensions.Timeline.csproj" />
+  <Project Path="AVProVideo.Extensions.UnityUI.csproj" />
+  <Project Path="AVProVideo.Extensions.VisualEffectGraph.csproj" />
+  <Project Path="_AVProVideo.Extensions.VideoPlayer.csproj" />
+  <Project Path="AVProVideo.Extensions.UnityUI.Editor.csproj" />
+</Solution>

@@ -29,16 +29,20 @@ public class DisplayRenderer : MonoBehaviour
     // 크로스페이드 진행 중 여부 플래그 (중복 실행 방지)
     private bool _isFading = false;
 
+    // 해당 모니터 전용 에러 오버레이 컨트롤러 (프리팹 기반)
+    private ErrorOverlayController _errorOverlay;
+
     /// <summary>
     /// PlaybackManager가 런타임에 호출하는 초기화 메서드.
-    /// RawImage, CanvasGroup, MediaPlayer 참조를 주입합니다.
+    /// RawImage, CanvasGroup, MediaPlayer, 그리고 에러 오버레이 참조를 주입합니다.
     /// </summary>
-    public void Initialize(RawImage imageA, RawImage imageB, MediaPlayer playerA, MediaPlayer playerB)
+    public void Initialize(RawImage imageA, RawImage imageB, MediaPlayer playerA, MediaPlayer playerB, ErrorOverlayController errorOverlay)
     {
         _imageA = imageA;
         _imageB = imageB;
         _playerA = playerA;
         _playerB = playerB;
+        _errorOverlay = errorOverlay;
 
         // CanvasGroup은 부모(검정 배경 포함)에 부착해야 크로스페이드가 배경+콘텐츠 모두 제어
         _groupA = imageA.transform.parent.gameObject.GetOrAddComponent<CanvasGroup>();
@@ -205,6 +209,29 @@ public class DisplayRenderer : MonoBehaviour
                 "fit_inside"   => AspectRatioFitter.AspectMode.FitInParent,
                 _              => AspectRatioFitter.AspectMode.EnvelopeParent
             };
+        }
+    }
+
+    /// <summary>
+    /// 깨진 미디어 감지 시, 해당 모니터 화면 전체에 빨간 경고 텍스트를 표시합니다.
+    /// 버퍼 종속성이 없으므로 모니터당 1개의 오버레이만 사용합니다.
+    /// </summary>
+    public void ShowErrorOverlay(string message)
+    {
+        if (_errorOverlay != null)
+        {
+            _errorOverlay.ShowError(message);
+        }
+    }
+
+    /// <summary>
+    /// 정상 미디어 로딩 시, 모니터의 경고 텍스트 오버레이를 숨깁니다.
+    /// </summary>
+    public void HideErrorOverlay()
+    {
+        if (_errorOverlay != null)
+        {
+            _errorOverlay.HideError();
         }
     }
 }

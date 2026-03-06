@@ -27,7 +27,6 @@ public class PlaybackManager : MonoBehaviour
     private MediaPlayer[][] mediaPlayers;
     
     // 시계열 멈춤 방지 및 동기화 무한 대기 타임아웃 변수
-    private float syncWaitTimer = 0f;
     private bool isTransitioning = false;
 
     // 이미지 전시용 실시간 타이머 (AVPro는 이미지의 재생 시간을 추적하지 않으므로 별도 관리)
@@ -35,6 +34,10 @@ public class PlaybackManager : MonoBehaviour
 
     // 백그라운드 선행 로딩 코루틴 추적 변수 (에러 시 중단 및 대체 목적)
     private Coroutine _prepareCoroutine;
+
+    [Header("모니터 할당 및 확장 관련 설정")]
+    [Tooltip("에러 발생 시 메인 모니터 화면 위에 띄울 경고창 프리팹")]
+    [SerializeField] private ErrorOverlayController errorOverlayPrefab;
 
     private void Start()
     {
@@ -107,7 +110,16 @@ public class PlaybackManager : MonoBehaviour
 
             // --- [UI] DisplayRenderer 초기화 (Canvas에 부착하고 MediaPlayer 2개를 주입) ---
             DisplayRenderer dr = canvasObj.AddComponent<DisplayRenderer>();
-            dr.Initialize(imgA, imgB, mediaPlayers[i][0], mediaPlayers[i][1]);
+            
+            // 프리팹이 등록되어 있다면 런타임에 "메인 모니터(0번)"에만 Instantiate 후 주입
+            ErrorOverlayController overlayInstance = null;
+            if (errorOverlayPrefab != null && i == 0)
+            {
+                overlayInstance = Instantiate(errorOverlayPrefab, canvas.transform);
+                overlayInstance.name = $"ErrorOverlay_MainMonitor";
+            }
+
+            dr.Initialize(imgA, imgB, mediaPlayers[i][0], mediaPlayers[i][1], overlayInstance);
             displayRenderers[i] = dr;
 
             Debug.Log($"[PlaybackManager] 모니터 {i} Canvas + DisplayRenderer 생성 완료");
@@ -185,7 +197,6 @@ public class PlaybackManager : MonoBehaviour
         int nextBufferIndex = (currentBufferIndex + 1) % 2;
 
         // 마스터 영상 종료 확인 즉시 전환 진행 (Watchdog이 재생 실패를 별도 감시)
-        syncWaitTimer = 0f;
         StartCoroutine(ExecuteCrossfadeAndSwap(nextBufferIndex));
     }
 
@@ -334,8 +345,24 @@ public class PlaybackManager : MonoBehaviour
             mediaPlayers[i][bufferIndex].CloseMedia();
             byte[] bytes = System.IO.File.ReadAllBytes(dataToLoad.FilePath);
             Texture2D tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-            tex.LoadImage(bytes);
-            displayRenderers[i].SetImageTexture(bufferIndex, tex);
+            bool loadSuccess = tex.LoadImage(bytes);
+
+            if (!loadSuccess || tex.width <= 2)
+            {
+                // 깨진 이미지: 메모리 해제 + 로그 + 화면 경고 표시
+                string fileName = System.IO.Path.GetFileName(dataToLoad.FilePath);
+                string errMsg = $"[PlaybackManager] 이미지 로딩 실패 (손상된 파일): {dataToLoad.FilePath}";
+                Debug.LogError(errMsg);
+                if (Logger.Instance != null) Logger.Instance.Enqueue(errMsg);
+                Destroy(tex);
+                // 에러 메시지는 항상 메인 모니터(0번)에만 띄우되, 어느 모니터/폴더 문제인지 명시
+                displayRenderers[0].ShowErrorOverlay(
+                    $"[모니터 {i} / Media{i} 폴더]\n{fileName} 파일이 손상/누락되었습니다.");
+            }
+            else
+            {
+                displayRenderers[i].SetImageTexture(bufferIndex, tex);
+            }
         }
     }
 
@@ -346,7 +373,7 @@ public class PlaybackManager : MonoBehaviour
         MediaPlayer p = mediaPlayers[i][bufferIndex];
             if (!string.IsNullOrEmpty(p.MediaPath.Path) && p.Control != null)
             {
-                // 메인 모니터(0번)는 IsFinished()로 전환을 감지하므로 루핑하면 안 됨
+                // 메인 모니터(0번)는 IsFinished()로 전환을 감지하므로 루프하면 안 됨
                 // 서브 모니터(1번~)만 메인 전환 시점까지 반복 재생
                 p.Control.SetLooping(i > 0);
                 p.Play();
@@ -364,7 +391,6 @@ public class PlaybackManager : MonoBehaviour
     private IEnumerator ResetSystemToZero()
     {
         isTransitioning = true;
-        syncWaitTimer = 0f; // [CRITICAL FIX] 반드시 먼저 리셋하여 다음 프레임 타임아웃 재트리거 방지
         currentGlobalSequenceIndex = 1;
 
         if (_prepareCoroutine != null) 
@@ -445,16 +471,41 @@ public class PlaybackManager : MonoBehaviour
             if (isActiveBuffer)
             {
                 if (Logger.Instance != null) Logger.Instance.Enqueue(errorMsg + " (활성 화면(Active) 에러: 즉시 시스템 전체 리셋을 수행합니다.)");
+                
+                string fileName = System.IO.Path.GetFileName(mp.MediaPath.Path);
+                int monitorIndex = GetMonitorIndexFromPlayer(mp, currentBufferIndex);
+                displayRenderers[0].ShowErrorOverlay(
+                    $"[모니터 {monitorIndex} / Media{monitorIndex} 폴더]\n{fileName} 파일이 손상/누락되었습니다.");
+                
                 if (!isTransitioning) StartCoroutine(ResetSystemToZero());
             }
             else
             {
                 if (Logger.Instance != null) Logger.Instance.Enqueue(errorMsg + " (백그라운드 에러: 현재 화면을 유지하고 빈 버퍼에 01번 영상 대체를 준비합니다.)");
                 
+                string fileName = System.IO.Path.GetFileName(mp.MediaPath.Path);
                 int backgroundBuffer = (currentBufferIndex + 1) % 2;
+                int monitorIndex = GetMonitorIndexFromPlayer(mp, backgroundBuffer);
+                displayRenderers[0].ShowErrorOverlay(
+                    $"[모니터 {monitorIndex} / Media{monitorIndex} 폴더]\n{fileName} 백그라운드 영상이 손상/누락되었습니다.");
+                
                 StartCoroutine(ReplaceBackgroundWithZero(backgroundBuffer));
             }
         }
+    }
+
+    /// <summary>
+    /// 주어진 MediaPlayer가 몇 번째 모니터에 속해있는지 찾아 반환하는 헬퍼 메서드
+    /// </summary>
+    private int GetMonitorIndexFromPlayer(MediaPlayer mp, int bufferIndex)
+    {
+        if (mediaPlayers == null) return -1;
+        for (int i = 0; i < mediaPlayers.Length; i++)
+        {
+            if (mediaPlayers[i] != null && mediaPlayers[i][bufferIndex] == mp)
+                return i;
+        }
+        return -1;
     }
 
     /// <summary>
