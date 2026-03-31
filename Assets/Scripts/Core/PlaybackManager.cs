@@ -97,6 +97,8 @@ public class PlaybackManager : MonoBehaviour
 
                 // AVPro Video의 핵심 컴포넌트 부착
                 MediaPlayer player = pObj.AddComponent<MediaPlayer>();
+                player.AutoOpen = false;
+                player.AutoStart = false;
 
                 // 에러 검출 및 자동 복구를 위한 자체 Watchdog 컴포넌트 부착 및 연동
                 VideoWatchdog watchdog = pObj.AddComponent<VideoWatchdog>();
