@@ -1,4 +1,5 @@
 Key,Value,Description
+DisplayCount,1,모니터 개수
 Display0_Resolution,1920x1080,메인 모니터 해상도
 Display1_Resolution,1920x1080,서브 모니터 1 해상도
 Display2_Resolution,1920x1080,서브 모니터 2 해상도

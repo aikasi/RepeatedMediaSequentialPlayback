@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+
 // AVPro Video 사용 선언
 using RenderHeads.Media.AVProVideo;
 
@@ -25,7 +26,7 @@ public class PlaybackManager : MonoBehaviour
     // 모니터별로 2개(버퍼A, 버퍼B)의 MediaPlayer를 관리하는 2차원 자료구조
     // array[monitorID][bufferID]
     private MediaPlayer[][] mediaPlayers;
-    
+
     // 시계열 멈춤 방지 및 동기화 무한 대기 타임아웃 변수
     private bool isTransitioning = false;
 
@@ -66,7 +67,7 @@ public class PlaybackManager : MonoBehaviour
             yield return null;
         }
 
-        int monitorCount = Display.displays.Length;
+        int monitorCount = CSVReader.GetIntValue("DisplayCount", Display.displays.Length);
         mediaPlayers = new MediaPlayer[monitorCount][];
         displayRenderers = new DisplayRenderer[monitorCount]; // [FIX] 매니페스트 배열 초기화 (누락되어 NullRef 발생하던 부분)
 
@@ -93,15 +94,14 @@ public class PlaybackManager : MonoBehaviour
             {
                 GameObject pObj = new GameObject($"Monitor_{i}_Buffer_{buffer}");
                 pObj.transform.SetParent(this.transform);
-                
+
                 // AVPro Video의 핵심 컴포넌트 부착
                 MediaPlayer player = pObj.AddComponent<MediaPlayer>();
 
-                
                 // 에러 검출 및 자동 복구를 위한 자체 Watchdog 컴포넌트 부착 및 연동
                 VideoWatchdog watchdog = pObj.AddComponent<VideoWatchdog>();
                 watchdog.OnFatalError += HandleFatalWatchdogError;
-                
+
                 // 엔진 팝업 억제: 에러 발생 시 Event 시스템으로 넘기도록 자동 처리 옵션
                 player.Events.AddListener(OnMediaPlayerEvent);
 
@@ -110,7 +110,7 @@ public class PlaybackManager : MonoBehaviour
 
             // --- [UI] DisplayRenderer 초기화 (Canvas에 부착하고 MediaPlayer 2개를 주입) ---
             DisplayRenderer dr = canvasObj.AddComponent<DisplayRenderer>();
-            
+
             // 프리팹이 등록되어 있다면 런타임에 "메인 모니터(0번)"에만 Instantiate 후 주입
             ErrorOverlayController overlayInstance = null;
             if (errorOverlayPrefab != null && i == 0)
@@ -131,7 +131,7 @@ public class PlaybackManager : MonoBehaviour
 
         // 3. 0번 버퍼(A) 일제히 재생 (크로스페이드 없이 즉시 전시)
         PlayBuffer(0);
-        
+
         // 4. 보이지 않는 버퍼(B)에 다음 파일번호(2번) 미리 로드
         currentGlobalSequenceIndex = 2;
         _prepareCoroutine = StartCoroutine(PrepareNextSequence(currentGlobalSequenceIndex, 1));
@@ -207,7 +207,7 @@ public class PlaybackManager : MonoBehaviour
     {
         isTransitioning = true;
         int oldBufferIndex = currentBufferIndex;
-        
+
         // 크로스페이드 시작 직전, 현재 재생 중이던 이전 버퍼의 모든 영상을 강제 일시정지!
         // (서브 모니터가 먼저 끝나서 0.0초부터 다시 반복 재생되는 현상 방지)
         for (int i = 0; i < mediaPlayers.Length; i++)
@@ -215,13 +215,13 @@ public class PlaybackManager : MonoBehaviour
             var oldPlayer = mediaPlayers[i][oldBufferIndex];
             if (oldPlayer != null && oldPlayer.Control != null)
             {
-                oldPlayer.Pause(); 
+                oldPlayer.Pause();
             }
         }
 
         // 새로운 버퍼 백그라운드에서 같이 재생 시작
         PlayBuffer(targetBufferIndex);
-        
+
         // [UI] 크로스페이드: 모니터별 DisplayRenderer에 Alpha 트윈 동시 예약
         if (displayRenderers != null)
         {
@@ -232,7 +232,6 @@ public class PlaybackManager : MonoBehaviour
             }
         }
         yield return new WaitForSeconds(ConfigManager.CrossfadeDelay);
-
 
         currentBufferIndex = targetBufferIndex;
 
@@ -262,7 +261,7 @@ public class PlaybackManager : MonoBehaviour
 
         // 핑퐁 글로벌 시퀀스 1업 및 다음 영상 백그라운드 비동기 Prepare 지시
         currentGlobalSequenceIndex++;
-        
+
         if (_prepareCoroutine != null) StopCoroutine(_prepareCoroutine);
         _prepareCoroutine = StartCoroutine(PrepareNextSequence(currentGlobalSequenceIndex, oldBufferIndex));
 
@@ -286,21 +285,21 @@ public class PlaybackManager : MonoBehaviour
 
         // 실제 파일 번호(Index) 계산
         int fileIndex = ((logicalSequenceIndex - 1) % mediaScanner.MaxValidIndex) + 1;
-        
+
         // 반복 주기마다 한 번만 진입 (더블 버퍼링 중복 방지)
         if (logicalSequenceIndex > 1 && fileIndex == 1 && _lastLoggedLoopIndex != logicalSequenceIndex)
         {
             _lastLoggedLoopIndex = logicalSequenceIndex;
-            
+
             // 이전 기록 시간으로부터 1시간(3600초) 이상 지났을 때만 실제 기록 (로그 스팸 방지)
             if (Time.time - _lastLoopLogTime >= 3600f)
             {
                 _lastLoopLogTime = Time.time;
                 string loopMsg = $"[PlaybackManager] 미디어 정상 순환 중 (생존 로그): 최대 {mediaScanner.MaxValidIndex}번 도달 → 01번으로 리셋 진행 (1시간 주기 알림)";
-                
+
                 // 에디터/콘솔에는 일반 정보로 출력 (노란색 Warning 아님)
                 Debug.Log(loopMsg);
-                
+
                 // 실제 로그 파일(.log)에는 수동으로 한 줄 밀어넣기 ([Warning] 태그 없이 기록됨)
                 if (Logger.Instance != null)
                 {
@@ -370,7 +369,7 @@ public class PlaybackManager : MonoBehaviour
     {
         for (int i = 0; i < mediaPlayers.Length; i++)
         {
-        MediaPlayer p = mediaPlayers[i][bufferIndex];
+            MediaPlayer p = mediaPlayers[i][bufferIndex];
             if (!string.IsNullOrEmpty(p.MediaPath.Path) && p.Control != null)
             {
                 // 메인 모니터(0번)는 IsFinished()로 전환을 감지하므로 루프하면 안 됨
@@ -393,7 +392,7 @@ public class PlaybackManager : MonoBehaviour
         isTransitioning = true;
         currentGlobalSequenceIndex = 1;
 
-        if (_prepareCoroutine != null) 
+        if (_prepareCoroutine != null)
         {
             StopCoroutine(_prepareCoroutine);
             _prepareCoroutine = null;
@@ -412,7 +411,8 @@ public class PlaybackManager : MonoBehaviour
         }
 
         // 모두 파기 (CloseMedia 전 Null 참조 방어 포함)
-        for(int i=0; i<mediaPlayers.Length; i++) {
+        for (int i = 0; i < mediaPlayers.Length; i++)
+        {
             if (mediaPlayers[i][0].Control != null) mediaPlayers[i][0].CloseMedia();
             if (mediaPlayers[i][1].Control != null) mediaPlayers[i][1].CloseMedia();
         }
@@ -435,7 +435,7 @@ public class PlaybackManager : MonoBehaviour
         {
             Logger.Instance.Enqueue($"[PlaybackManager] Watchdog 치명적 에러 콜백 수신됨: {mp.MediaPath.Path}. 전체 리셋을 수행합니다.");
         }
-        
+
         // 이미 트랜지션(리셋) 중이 아니라면 바로 코루틴을 태워 리셋
         if (!isTransitioning)
         {
@@ -453,7 +453,7 @@ public class PlaybackManager : MonoBehaviour
         {
             string errorMsg = $"[PlaybackManager] AVPro 재생 네이티브 오류 발생: {errorCode} at path {mp.MediaPath.Path}";
             Debug.LogError(errorMsg);
-            
+
             // 현재 화면에 영사 중인 주력 버퍼인지, 뒤에서 몰래 준비 중인 백그라운드 버퍼인지 검사
             bool isActiveBuffer = false;
             if (mediaPlayers != null)
@@ -471,24 +471,24 @@ public class PlaybackManager : MonoBehaviour
             if (isActiveBuffer)
             {
                 if (Logger.Instance != null) Logger.Instance.Enqueue(errorMsg + " (활성 화면(Active) 에러: 즉시 시스템 전체 리셋을 수행합니다.)");
-                
+
                 string fileName = System.IO.Path.GetFileName(mp.MediaPath.Path);
                 int monitorIndex = GetMonitorIndexFromPlayer(mp, currentBufferIndex);
                 displayRenderers[0].ShowErrorOverlay(
                     $"[모니터 {monitorIndex} / Media{monitorIndex} 폴더]\n{fileName} 파일이 손상/누락되었습니다.");
-                
+
                 if (!isTransitioning) StartCoroutine(ResetSystemToZero());
             }
             else
             {
                 if (Logger.Instance != null) Logger.Instance.Enqueue(errorMsg + " (백그라운드 에러: 현재 화면을 유지하고 빈 버퍼에 01번 영상 대체를 준비합니다.)");
-                
+
                 string fileName = System.IO.Path.GetFileName(mp.MediaPath.Path);
                 int backgroundBuffer = (currentBufferIndex + 1) % 2;
                 int monitorIndex = GetMonitorIndexFromPlayer(mp, backgroundBuffer);
                 displayRenderers[0].ShowErrorOverlay(
                     $"[모니터 {monitorIndex} / Media{monitorIndex} 폴더]\n{fileName} 백그라운드 영상이 손상/누락되었습니다.");
-                
+
                 StartCoroutine(ReplaceBackgroundWithZero(backgroundBuffer));
             }
         }
@@ -515,21 +515,21 @@ public class PlaybackManager : MonoBehaviour
     private IEnumerator ReplaceBackgroundWithZero(int backgroundBufferIndex)
     {
         // 1. 기존 진행 중이던 선행 로딩 코루틴 안전하게 취소 방어
-        if (_prepareCoroutine != null) 
+        if (_prepareCoroutine != null)
         {
             StopCoroutine(_prepareCoroutine);
             _prepareCoroutine = null;
         }
 
         // 2. 이미 로드 중이거나 에러난 백그라운드 영상들 엔진 깨끗하게 닫기
-        for(int i = 0; i < mediaPlayers.Length; i++) 
+        for (int i = 0; i < mediaPlayers.Length; i++)
         {
-            if (mediaPlayers[i] != null && mediaPlayers[i][backgroundBufferIndex] != null) 
+            if (mediaPlayers[i] != null && mediaPlayers[i][backgroundBufferIndex] != null)
             {
                 mediaPlayers[i][backgroundBufferIndex].CloseMedia();
             }
         }
-        
+
         // 3. 글로벌 인덱스 강제 1변경 및 새로 로딩 트리거
         currentGlobalSequenceIndex = 1;
         _prepareCoroutine = StartCoroutine(PrepareNextSequence(currentGlobalSequenceIndex, backgroundBufferIndex));
@@ -551,7 +551,7 @@ public class PlaybackManager : MonoBehaviour
 
         if (dict.TryGetValue(fileIndex, out var data))
             return data;
-            
+
         return null;
     }
 
@@ -590,13 +590,12 @@ public class PlaybackManager : MonoBehaviour
         AspectRatioFitter fitter = rawObj.AddComponent<AspectRatioFitter>();
         fitter.aspectMode = ConfigManager.DisplayFitMode switch
         {
-            "stretch"      => AspectRatioFitter.AspectMode.None,
-            "fit_outside"  => AspectRatioFitter.AspectMode.EnvelopeParent,
-            "fit_inside"   => AspectRatioFitter.AspectMode.FitInParent,
-            _              => AspectRatioFitter.AspectMode.EnvelopeParent  // 기본값: fit_outside
+            "stretch" => AspectRatioFitter.AspectMode.None,
+            "fit_outside" => AspectRatioFitter.AspectMode.EnvelopeParent,
+            "fit_inside" => AspectRatioFitter.AspectMode.FitInParent,
+            _ => AspectRatioFitter.AspectMode.EnvelopeParent  // 기본값: fit_outside
         };
 
         return rawImage;
     }
 }
-
