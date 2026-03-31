@@ -67,7 +67,7 @@ public class PlaybackManager : MonoBehaviour
             yield return null;
         }
 
-        int monitorCount = CSVReader.GetIntValue("DisplayCount", Display.displays.Length);
+        int monitorCount = ConfigManager.DisplayCount;
         mediaPlayers = new MediaPlayer[monitorCount][];
         displayRenderers = new DisplayRenderer[monitorCount]; // [FIX] 매니페스트 배열 초기화 (누락되어 NullRef 발생하던 부분)
 

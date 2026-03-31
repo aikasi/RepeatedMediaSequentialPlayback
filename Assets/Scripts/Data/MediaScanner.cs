@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 
 /// <summary>
-/// 로컬 폴더(StreamingAssets)를 탐색하여 조건에 맞는 미디어 파일의 절대경로를 캐싱하고 
+/// 로컬 폴더(StreamingAssets)를 탐색하여 조건에 맞는 미디어 파일의 절대경로를 캐싱하고
 /// 빠른 재생을 위한 플레이리스트 자료구조를 생성하는 스크립트.
 /// </summary>
 public class MediaScanner : MonoBehaviour
@@ -54,7 +54,7 @@ public class MediaScanner : MonoBehaviour
 
         // 메인 모니터(Media0)의 파일 인덱스들을 가져옴
         var media0Dict = PlaylistByIndex[0];
-        
+
         // 메인 모니터에 있는 가장 큰 파일 번호 찾기
         int maxIndexInMedia0 = 0;
         foreach (int key in media0Dict.Keys)
@@ -77,7 +77,7 @@ public class MediaScanner : MonoBehaviour
         }
 
         // [2단계] 서브 모니터들을 메인 모니터에 "실제로 존재하는 번호들"과 1:1 대조
-        for (int monitorId = 1; monitorId < Display.displays.Length; monitorId++)
+        for (int monitorId = 1; monitorId < ConfigManager.DisplayCount; monitorId++)
         {
             if (!PlaylistByIndex.ContainsKey(monitorId))
             {
@@ -96,7 +96,7 @@ public class MediaScanner : MonoBehaviour
                 }
             }
         }
-        
+
         Debug.Log($"[MediaScanner] ---------------------------------------------");
     }
 
@@ -106,12 +106,12 @@ public class MediaScanner : MonoBehaviour
     private void ScanMediaFiles()
     {
         string baseMediaPath = Application.streamingAssetsPath;
-        
+
         // 연결된 모니터 수만큼 순회하며 "Media0", "Media1" 폴더 스캔
-        for (int i = 0; i < Display.displays.Length; i++)
+        for (int i = 0; i < ConfigManager.DisplayCount; i++)
         {
             string mediaFolderPath = Path.Combine(baseMediaPath, $"Media{i}");
-            
+
             // 필수 폴더 누락 등의 예외 환경(Edge Case) 대응
             if (!Directory.Exists(mediaFolderPath))
             {
@@ -125,7 +125,7 @@ public class MediaScanner : MonoBehaviour
             foreach (string filePath in files)
             {
                 // Unity 내부에서 무작위로 생성하는 .meta 파일 등은 스캔에서 과감히 무시
-                if (filePath.EndsWith(".meta")) continue; 
+                if (filePath.EndsWith(".meta")) continue;
 
                 string fileName = Path.GetFileName(filePath);
                 Match match = filePattern.Match(fileName);
@@ -232,7 +232,7 @@ public class MediaScanner : MonoBehaviour
         {
             return MediaType.Image;
         }
-        
+
         return MediaType.Unknown;
     }
 }
