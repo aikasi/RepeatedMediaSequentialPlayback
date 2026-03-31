@@ -259,7 +259,7 @@ public class PlaybackManager : MonoBehaviour
         }
 
         // 가비지 컬렉터 강제 호출로 런타임 누수 차단
-        Resources.UnloadUnusedAssets();
+        yield return Resources.UnloadUnusedAssets();
 
         // 핑퐁 글로벌 시퀀스 1업 및 다음 영상 백그라운드 비동기 Prepare 지시
         currentGlobalSequenceIndex++;

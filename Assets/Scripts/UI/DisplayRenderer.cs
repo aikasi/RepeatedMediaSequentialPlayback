@@ -13,14 +13,17 @@ public class DisplayRenderer : MonoBehaviour
 {
     // 더블 버퍼 역할의 RawImage 두 개
     private RawImage _imageA;
+
     private RawImage _imageB;
 
     // 각 RawImage에 연결된 AVPro MediaPlayer 참조
     private MediaPlayer _playerA;
+
     private MediaPlayer _playerB;
 
     // CanvasGroup은 Alpha 페이드에 사용됩니다 (RawImage의 color.a보다 일괄 처리에 효율적)
     private CanvasGroup _groupA;
+
     private CanvasGroup _groupB;
 
     // 현재 활성화된 버퍼 인덱스 (0=A, 1=B)
@@ -88,10 +91,10 @@ public class DisplayRenderer : MonoBehaviour
                 fitter.aspectRatio = (float)texture.width / texture.height;
                 fitter.aspectMode = ConfigManager.DisplayFitMode switch
                 {
-                    "stretch"      => AspectRatioFitter.AspectMode.None,
-                    "fit_outside"  => AspectRatioFitter.AspectMode.EnvelopeParent,
-                    "fit_inside"   => AspectRatioFitter.AspectMode.FitInParent,
-                    _              => AspectRatioFitter.AspectMode.EnvelopeParent
+                    "stretch" => AspectRatioFitter.AspectMode.None,
+                    "fit_outside" => AspectRatioFitter.AspectMode.EnvelopeParent,
+                    "fit_inside" => AspectRatioFitter.AspectMode.FitInParent,
+                    _ => AspectRatioFitter.AspectMode.EnvelopeParent
                 };
             }
         }
@@ -109,11 +112,17 @@ public class DisplayRenderer : MonoBehaviour
 
         // 전환 대상 그룹 결정
         CanvasGroup fadeOut = targetBufferIndex == 1 ? _groupA : _groupB;
-        CanvasGroup fadeIn  = targetBufferIndex == 1 ? _groupB : _groupA;
+        CanvasGroup fadeIn = targetBufferIndex == 1 ? _groupB : _groupA;
+        var fadeOutPlayer = targetBufferIndex == 1 ? _playerA : _playerB;
+        var fadeInPlayer = targetBufferIndex == 1 ? _playerB : _playerA;
+
+        if (Mathf.Approximately(duration, 0f)) goto End; // skip fade to prevent divBy0
 
         // 안전하게 시작 값 초기화
         fadeOut.alpha = 1f;
-        fadeIn.alpha  = 0f;
+        fadeIn.alpha = 0f;
+        fadeOutPlayer.AudioVolume = 1f;
+        fadeInPlayer.AudioVolume = 0f;
 
         // Alpha 트위닝: 선형 보간으로 부드럽게 전환
         float elapsed = 0f;
@@ -121,14 +130,19 @@ public class DisplayRenderer : MonoBehaviour
         {
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
-            fadeIn.alpha  = t;
+            fadeIn.alpha = t;
             fadeOut.alpha = 1f - t;
+            fadeInPlayer.AudioVolume = t;
+            fadeOutPlayer.AudioVolume = 1f - t;
             yield return null;
         }
 
+    End:
         // 최종값 고정 (부동소수점 오차 방지)
-        fadeIn.alpha  = 1f;
+        fadeIn.alpha = 1f;
         fadeOut.alpha = 0f;
+        fadeInPlayer.AudioVolume = 1f;
+        fadeOutPlayer.AudioVolume = 0f;
 
         _activeBuffer = targetBufferIndex;
         _isFading = false;
@@ -143,7 +157,7 @@ public class DisplayRenderer : MonoBehaviour
         // 1. 진행 중인 페이드 코루틴 강제 종료
         StopAllCoroutines();
         _isFading = false;
-        
+
         // 2. 대상 버퍼는 즉시 100% 알파, 다른 하나는 0% 알파로 고정
         if (targetBufferIndex == 0)
         {
@@ -184,10 +198,10 @@ public class DisplayRenderer : MonoBehaviour
             fitter.aspectRatio = (float)texture.width / texture.height;
             fitter.aspectMode = ConfigManager.ImageFitMode switch
             {
-                "stretch"      => AspectRatioFitter.AspectMode.None,
-                "fit_outside"  => AspectRatioFitter.AspectMode.EnvelopeParent,
-                "fit_inside"   => AspectRatioFitter.AspectMode.FitInParent,
-                _              => AspectRatioFitter.AspectMode.EnvelopeParent
+                "stretch" => AspectRatioFitter.AspectMode.None,
+                "fit_outside" => AspectRatioFitter.AspectMode.EnvelopeParent,
+                "fit_inside" => AspectRatioFitter.AspectMode.FitInParent,
+                _ => AspectRatioFitter.AspectMode.EnvelopeParent
             };
         }
     }
@@ -204,10 +218,10 @@ public class DisplayRenderer : MonoBehaviour
         {
             fitter.aspectMode = ConfigManager.DisplayFitMode switch
             {
-                "stretch"      => AspectRatioFitter.AspectMode.None,
-                "fit_outside"  => AspectRatioFitter.AspectMode.EnvelopeParent,
-                "fit_inside"   => AspectRatioFitter.AspectMode.FitInParent,
-                _              => AspectRatioFitter.AspectMode.EnvelopeParent
+                "stretch" => AspectRatioFitter.AspectMode.None,
+                "fit_outside" => AspectRatioFitter.AspectMode.EnvelopeParent,
+                "fit_inside" => AspectRatioFitter.AspectMode.FitInParent,
+                _ => AspectRatioFitter.AspectMode.EnvelopeParent
             };
         }
     }

@@ -468,7 +468,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Logger
   autoInitialize: 1
   logConsole: 0
-  maxFileCount: 1000
+  maxFileCount: 100
   appendTime: 1
 --- !u!114 &1732238837
 MonoBehaviour:
